@@ -5,28 +5,26 @@ import csv
 import re
 from datetime import datetime
 
-# rm ulCPU.json ulGPU.json
-# scrapy crawl ulCPU -o ulCPU.json
-# scrapy crawl ulGPU -o ulGPU.json
-
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
-print(os.path.abspath("."))
-
+scrapeWeb = True
 mode = "both"
 
 cpuBlacklists = re.compile(r'i[3-9]-[2-7]|i[3-9]-\d{3}$|FX-|1300X|1400|1500X|2400G')
 gpuBlacklists = re.compile(r'Quadro|GT |HD |GTX [3-9]|R[5-9]|Titan|GTX 10|RX 4')
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+print(os.path.abspath("."))
+
 api = API()
 date = datetime.today().strftime('%Y-%m-%d')
 
 if mode != "gpu":
-    try:
-        os.remove('ulCPU.json')
-    except OSError:
-        pass
+    if scrapeWeb:
+        try:
+            os.remove('ulCPU.json')
+        except OSError:
+            pass
 
-    os.system('scrapy crawl ulCPU -o ulCPU.json')
+        os.system('scrapy crawl ulCPU -o ulCPU.json')
 
     cpu_data = api.retrieve("cpu")
     pcppCPUs = {}
@@ -65,12 +63,13 @@ if mode != "gpu":
             spamwriter.writerow([model, str(matches[model]["price"]), matches[model]["performance"], matches[model]["brand"], matches[model]["popularity"], matches[model]["cores"]])
 
 if mode != "cpu":
-    try:
-        os.remove('ulGPU.json')
-    except OSError:
-        pass
+    if scrapeWeb:
+        try:
+            os.remove('ulGPU.json')
+        except OSError:
+            pass
 
-    os.system('scrapy crawl ulGPU -o ulGPU.json')
+        os.system('scrapy crawl ulGPU -o ulGPU.json')
 
     gpu_data = api.retrieve("video-card")
     pcppGPUs = {}
