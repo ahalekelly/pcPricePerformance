@@ -9,6 +9,9 @@ from datetime import datetime
 # scrapy crawl ulCPU -o ulCPU.json
 # scrapy crawl ulGPU -o ulGPU.json
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+print(os.path.abspath("."))
+
 mode = "both"
 
 cpuBlacklists = re.compile(r'i[3-9]-[2-7]|i[3-9]-\d{3}$|FX-|1300X|1400|1500X|2400G')
@@ -18,6 +21,13 @@ api = API()
 date = datetime.today().strftime('%Y-%m-%d')
 
 if mode != "gpu":
+    try:
+        os.remove('ulCPU.json')
+    except OSError:
+        pass
+
+    os.system('scrapy crawl ulCPU -o ulCPU.json')
+
     cpu_data = api.retrieve("cpu")
     pcppCPUs = {}
     print(len(cpu_data["cpu"]), "pcpartpicker cpus")
@@ -55,6 +65,13 @@ if mode != "gpu":
             spamwriter.writerow([model, str(matches[model]["price"]), matches[model]["performance"], matches[model]["brand"], matches[model]["popularity"], matches[model]["cores"]])
 
 if mode != "cpu":
+    try:
+        os.remove('ulGPU.json')
+    except OSError:
+        pass
+
+    os.system('scrapy crawl ulGPU -o ulGPU.json')
+
     gpu_data = api.retrieve("video-card")
     pcppGPUs = {}
     print(len(gpu_data["video-card"]), "pcpartpicker gpus")

@@ -14,6 +14,7 @@ BOT_NAME = 'pcPricePerformance'
 SPIDER_MODULES = ['pcPricePerformance.spiders']
 NEWSPIDER_MODULE = 'pcPricePerformance.spiders'
 
+LOG_LEVEL = 'WARNING'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'pcPricePerformance (+http://www.yourdomain.com)'

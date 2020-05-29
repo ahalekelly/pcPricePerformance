@@ -11,8 +11,8 @@ class ulCPUSpider(scrapy.Spider):
 
     def parse(self, response):
         for selector in response.xpath("//tbody/tr"):
-            print(selector)
             item = ulItem()
+            #print(selector)
             item["model"] = selector.xpath("td/a/node()").extract_first()
             item["performance"] = int(selector.xpath("td/div[@class='bar-holder performance']/div/span/node()").extract_first())
             item["popularity"] = float(selector.xpath("td/div[@class='bar-holder secondary']/div/span/node()").extract_first())
@@ -28,8 +28,8 @@ class ulGPUSpider(scrapy.Spider):
 
     def parse(self, response):
         for selector in response.xpath("//tbody/tr"):
-            print(selector)
             item = ulItem()
+            #print(selector)
             item["model"] = selector.xpath("td/a/node()").extract_first()
             item["performance"] = int(selector.xpath("td/div[@class='bar-holder performance']/div/span/node()").extract_first())
             item["popularity"] = float(selector.xpath("td/div[@class='bar-holder secondary']/div/span/node()").extract_first())
