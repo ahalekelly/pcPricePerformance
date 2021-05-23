@@ -8,9 +8,10 @@ import plotly.graph_objects as go
 
 
 scrapeWeb = True
-mode = "both"
+mode = "both" # cpu, gpu, both
+priceSource = "ul" # pcpp, ul
 
-cpuBlacklists = re.compile(r'i[3-9]-[2-7]|i[3-9]-\d{3}$|FX-|1300X|1400|1500X|2400G')
+cpuBlacklists = re.compile(r'i[3-9]-[2-9]|i[3-9]-\d{3}$|FX-|Xeon')
 gpuBlacklists = re.compile(r'Quadro|GT |HD |GTX [3-9]|R[5-9]|Titan|GTX 10|RX 4')
 colorMap = {'AMD':'rgb(255, 65, 54)','Intel':'rgb(93, 164, 214)','Nvidia':'rgb(44, 160, 101)'}
 
@@ -28,51 +29,68 @@ if mode != "gpu":
             pass
 
         os.system('scrapy crawl ulCPU -o ulCPU.json')
+    if priceSource == "pcpp":
+        cpu_data = api.retrieve("cpu")
+        pcppCPUs = {}
+        print(len(cpu_data["cpu"]), "pcpartpicker cpus")
+        print(cpu_data["cpu"][0])
+        with open(os.path.join(os.path.dirname(__file__), 'pcpp-cpus.csv'), 'w', newline='') as f:
+            for cpu in cpu_data["cpu"]:
+                f.write(str(cpu)+'\r\n')
+                if not cpu.price.amount.is_zero() and not cpuBlacklists.search(cpu.model):
+                    model = cpu.model
+                    if "Core i" in model:
+                        model += " "
+                    if model in pcppCPUs:
+                        pcppCPUs[model]["price"] = min(pcppCPUs[model]["price"], cpu.price.amount)
+                    else:
+                        pcppCPUs[model] = {"cores":cpu.cores, "price":cpu.price.amount, "brand":cpu.brand}
+        print(len(pcppCPUs), "pcpartpicker cpus with prices")
 
-    cpu_data = api.retrieve("cpu")
-    pcppCPUs = {}
-    print(len(cpu_data["cpu"]), "pcpartpicker cpus")
-#    print(cpu_data["cpu"][0])
-    for cpu in cpu_data["cpu"]:
-        if not cpu.price.amount.is_zero() and not cpuBlacklists.search(cpu.model):
-            model = cpu.model
-            if "Core i" in model:
-                model += " "
-            if model in pcppCPUs:
-                pcppCPUs[model]["price"] = min(pcppCPUs[model]["price"], cpu.price.amount)
-            else:
-                pcppCPUs[model] = {"cores":cpu.cores, "price":cpu.price.amount, "brand":cpu.brand}
-    print(len(pcppCPUs), "pcpartpicker cpus with prices")
+        ulCPUs = json.load(open(os.path.join(os.path.dirname(__file__), 'ulCPU.json'), "rb" ))
 
-    ulCPUs = json.load(open(os.path.join(os.path.dirname(__file__), 'ulCPU.json'), "rb" ))
-
-    matches = {}
-    for model in pcppCPUs:
+        matches = {}
+        for model in pcppCPUs:
+            for ulCPU in ulCPUs:
+                if (model.lower() in ulCPU["model"].lower() or ulCPU["model"].lower() in model.lower()) and ulCPU["performance"] > 0:
+                    modelShort = model.replace("Core ","")\
+                    .replace("Pentium ","")\
+                    .replace("Threadripper ","")\
+                    .replace("Ryzen 3 ","")\
+                    .replace("Ryzen 5 ","")\
+                    .replace("Ryzen 7 ","")\
+                    .replace("Ryzen 9 ","")
+                    matches[modelShort] = {**pcppCPUs[model], **ulCPU}
+        print(len(matches), "matches")
+    else:
+        matches = {}
+        ulCPUs = json.load(open(os.path.join(os.path.dirname(__file__), 'ulCPU.json'), "rb" ))
+        print(ulCPUs[0])
         for ulCPU in ulCPUs:
-            if (model.lower() in ulCPU["model"].lower() or ulCPU["model"].lower() in model.lower()) and ulCPU["performance"] > 0:
-                modelShort = model.replace("Core ","")\
+            if ulCPU['msrp'] and not cpuBlacklists.search(ulCPU['model']):
+                modelShort = ulCPU['model'].split(' ', 1)[1].replace("Core ","")\
                 .replace("Pentium ","")\
                 .replace("Threadripper ","")\
                 .replace("Ryzen 3 ","")\
                 .replace("Ryzen 5 ","")\
                 .replace("Ryzen 7 ","")\
                 .replace("Ryzen 9 ","")
-                matches[modelShort] = {**pcppCPUs[model], **ulCPU}
-    print(len(matches), "matches")
+                matches[modelShort] = {'price':int(ulCPU['msrp'][1:]), 'model':ulCPU['model'], 'performance':ulCPU['performance'], 'popularity':ulCPU['popularity'], 'brand':ulCPU['model'].split(' ', 1)[0]}
+
     prices=[]
     scores=[]
     popularities=[]
     names=[]
     fullNames=[]
     brands=[]
-    maxPrice = 750
-    print(maxPrice)
+    maxPrice = 800
+    print("maxPrice:",maxPrice)
 
     with open(os.path.join(os.path.dirname(__file__), 'cpus-'+date+'.csv'), 'w', newline='') as csvfile:
-        spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        spamwriter.writerow(["Model","Price","Performance","Brand","Popularity","Cores"])
+        csvWriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csvWriter.writerow(["Model","Price","Performance","Brand","Popularity","Cores"])
         for model in matches:
-            spamwriter.writerow([model, str(matches[model]["price"]), matches[model]["performance"], matches[model]["brand"], matches[model]["popularity"], matches[model]["cores"]])
+            csvWriter.writerow([model, str(matches[model]["price"]), matches[model]["performance"], matches[model]["brand"], matches[model]["popularity"]]) #, matches[model]["cores"]
             if matches[model]["price"] <= maxPrice:
                 prices.append(str(matches[model]["price"]))
                 scores.append(matches[model]["performance"])
@@ -83,17 +101,19 @@ if mode != "gpu":
     fig = go.Figure(data=[go.Scatter(
         x=prices, y=scores,
         text=names,
-        mode='markers+text',
+        mode='markers',
         textposition='middle center',
         marker=dict(
             color=[colorMap[brand] for brand in brands],
             size=popularities,
             sizemode='area',
             sizeref=2.*max(popularities)/(60.**2),
-            sizemin=5 
+            sizemin=5
         )
     )])
-    print(prices[scores.index(max(scores))])
+    fig.update_xaxes(rangemode="tozero", type="linear")
+    fig.update_yaxes(rangemode="tozero", type="linear")
+    print("highest price:", prices[scores.index(max(scores))])
     fig.show()
 
 if mode != "cpu":
@@ -135,7 +155,7 @@ if mode != "cpu":
     print(len(matches), "matches")
 
     with open(os.path.join(os.path.dirname(__file__), 'gpus-'+date+'.csv'), 'w', newline='') as csvfile:
-        spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        spamwriter.writerow(["Model","Price","Performance","Brand","Popularity"])
+        csvWriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csvWriter.writerow(["Model","Price","Performance","Brand","Popularity"])
         for model in matches:
-            spamwriter.writerow([model, str(matches[model]["price"]), matches[model]["performance"], matches[model]["brand"], matches[model]["popularity"]])
+            csvWriter.writerow([model, str(matches[model]["price"]), matches[model]["performance"], matches[model]["brand"], matches[model]["popularity"]])

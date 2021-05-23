@@ -9,5 +9,6 @@ import scrapy
 
 class ulItem(scrapy.Item):
     model = scrapy.Field()
+    msrp = scrapy.Field()
     performance = scrapy.Field()
     popularity = scrapy.Field()

@@ -14,6 +14,7 @@ class ulCPUSpider(scrapy.Spider):
             item = ulItem()
             #print(selector)
             item["model"] = selector.xpath("td/a/node()").extract_first()
+            item["msrp"] = selector.xpath("td/span[@class='price-large-list right']/div/node()").extract_first().strip()
             item["performance"] = int(selector.xpath("td/div[@class='bar-holder performance']/div/span/node()").extract_first())
             item["popularity"] = float(selector.xpath("td/div[@class='bar-holder secondary']/div/span/node()").extract_first())
             yield item
@@ -31,6 +32,7 @@ class ulGPUSpider(scrapy.Spider):
             item = ulItem()
             #print(selector)
             item["model"] = selector.xpath("td/a/node()").extract_first()
+            item["msrp"] = selector.xpath("td/span[@class='price-large-list right']/div/node()").extract_first()
             item["performance"] = int(selector.xpath("td/div[@class='bar-holder performance']/div/span/node()").extract_first())
             item["popularity"] = float(selector.xpath("td/div[@class='bar-holder secondary']/div/span/node()").extract_first())
             yield item
